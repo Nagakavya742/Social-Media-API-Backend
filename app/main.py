@@ -1,4 +1,4 @@
-from fastapi import FastAPI,Response,status,HTTPException
+from fastapi import FastAPI,Response,status,HTTPException,Depends
 from fastapi.params import Body
 from pydantic import BaseModel
 from typing import Optional
@@ -6,8 +6,23 @@ from random import randrange
 import psycopg2
 from psycopg2.extras import RealDictCursor
 import time
+from sqlalchemy.orm import sessionmaker, Session
+from . import models
+from .database import engine,SessionLocal
 
-app=FastAPI()   #FastAPI is in child level so first in Social-Media-API-Backend activate it and then cd app excute and database is connected
+#create engine all our models
+models.Base.metadata.create_all(bind=engine)
+
+
+app=FastAPI()   #FastAPI is in child level so first in Social-Media-API-Backend activate it and then cd app execute and database is connected
+
+
+def get_db():    #we just keep calling this function every time we get any request from to any of our API endpoints 
+  db=SessionLocal()
+  try:
+    yield db
+  finally:
+    db.close()
 
 
       #SCHEMA
@@ -54,6 +69,10 @@ def find_index_post(id):
 @app.get("/")
 def get_posts():
   return {"dat" : "this is your posts"}
+
+@app.get("/sqlalchemy")
+def test_posts(db:Session = Depends(get_db)):
+  return {"status":"success"}
 
     #CRUD OPP
      # GETTING ALL POSTS
@@ -139,15 +158,4 @@ def update_post(id: int,post: Post):
   
 # POSTGRE DATABASE
 #connecting postgre to python with Psycopg2
-
-
-
-  
-
-  
-  
-      
-  
-  
-          
 
