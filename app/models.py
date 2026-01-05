@@ -1,12 +1,15 @@
 from .database import Base
-from sqlalchemy import column,Integer,String,Boolean
+from sqlalchemy import Column,Integer,String,Boolean
+from sqlalchemy.sql.expression import text
+from sqlalchemy.sql.sqltypes import TIMESTAMP
 
-#base is a basemodel from a sqlalchmey  
-class Post(Base):
+#base is a Basemodel from a sqlalchemy  
+class Post(Base):      #model 1
   __tablename__="posts"
   
-  id = column(Integer,primary_key=True,nullable=False)
-  title=column(String,nullable=False)
-  content=column(String,nullable=False)
-  published=column(Boolean,default=True)
+  id = Column(Integer,primary_key=True,nullable=False)
+  title=Column(String,nullable=False)
+  content=Column(String,nullable=False)
+  published=Column(Boolean,server_default='TRUE',nullable=False)
+  created_at=Column(TIMESTAMP(timezone=True),nullable=False,server_default=text('now()'))
      

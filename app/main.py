@@ -6,9 +6,10 @@ from random import randrange
 import psycopg2
 from psycopg2.extras import RealDictCursor
 import time
-from sqlalchemy.orm import sessionmaker, Session
+from sqlalchemy.orm import  Session
+# from app.models import models
+from .database import engine,get_db
 from . import models
-from .database import engine,SessionLocal
 
 #create engine all our models
 models.Base.metadata.create_all(bind=engine)
@@ -17,12 +18,7 @@ models.Base.metadata.create_all(bind=engine)
 app=FastAPI()   #FastAPI is in child level so first in Social-Media-API-Backend activate it and then cd app execute and database is connected
 
 
-def get_db():    #we just keep calling this function every time we get any request from to any of our API endpoints 
-  db=SessionLocal()
-  try:
-    yield db
-  finally:
-    db.close()
+
 
 
       #SCHEMA
@@ -38,7 +34,7 @@ while True:
       host='localhost',                  #local host is defined for local machine for ip address
       database='fastAPI',                #My DB is fastAPI and it connects
       user='postgres',                   #it connects to the postgres user
-      password='pavan',             #password for PgAdmin change it while commiting into github
+      password='pavan', #password for PgAdmin change it while committing into github
       cursor_factory=RealDictCursor)     #it gives the column names and values
     cursor=conn.cursor()
     print("Database connection was successful")
@@ -72,26 +68,45 @@ def get_posts():
 
 @app.get("/sqlalchemy")
 def test_posts(db:Session = Depends(get_db)):
-  return {"status":"success"}
+  posts=db.query(models.Post)  #model represents table and db represents SessionLocal in DB
+                              #same as select * from posts.It abstracts all sql queries         
+  print(posts)
+  return {"data":"successful"}
+
+
+
 
     #CRUD OPP
      # GETTING ALL POSTS
 @app.get("/posts")         
-def get_posts():
-  cursor.execute("""SELECT * FROM posts""")
-  posts=cursor.fetchall()
+def get_posts(db:Session = Depends(get_db)):   #ur path operations need to work with DB then u should give parameters db:session=Depends(get_db)
+  # cursor.execute("""SELECT * FROM posts""")
+  # posts=cursor.fetchall()
+  posts=db.query(models.Post).all()
   return {"data":posts}
+
+
 
 
     #CREATING POSTS
 @app.post("/posts", status_code=status.HTTP_201_CREATED) #changes the default 200 as 201 created
-def create_posts(post:Post):         
+def create_posts(post:Post,db:Session = Depends(get_db)):         
   #referencing pydantic model
   # instead of dict we use model_dump in pydantic
-  cursor.execute("""INSERT INTO posts(title,content,published) VALUES (%s,%s,%s) RETURNING * """,
-                 (post.title,post.content,post.published))   #getting values
-  conn.commit()   #make sure to connect commit to actual postgres database
-  new_post=cursor.fetchone()
+  # cursor.execute("""INSERT INTO posts(title,content,published) VALUES (%s,%s,%s) RETURNING * """,
+  #                (post.title,post.content,post.published))   #getting values
+  # conn.commit()   #make sure to connect commit to actual postgres database
+  # new_post=cursor.fetchone()
+  # print(**post.dict())
+  # new_post=models.Post(title=post.title,
+  #                      content=post.content,
+  #                      published=post.published)  #sqlalchemy handles all our logics and retrieving data
+  new_post=models.Post(     #it is used to retrieve all attributes(column) in DataBase table
+    **post.dict()
+  )
+  db.add(new_post)   #added to newly created DB
+  db.commit()
+  db.refresh(new_post)    #returning the posts to PgAdmin same as returning statement in psycopg2 
   return {"data":new_post} 
   #it separately gives random is=d to every post inserted into it
   #thus by running get method we get all the posts send to the post_dict
@@ -104,14 +119,16 @@ def create_posts(post:Post):
 #   return{"detail":post}
 
 
+
+
     #GETTING INDIVIDUAL POSTS
 @app.get("/posts/{id}")         
 #id represents the path parameter id of specific post
-def get_post(id:str,response:Response):     #changing the response of the error occured like 200 to 404    
+def get_post(id:int,db:Session = Depends(get_db)):     #(response:Response)changing the response of the error occurred like 200 to 404    
   #automatically converts the the inbuilt string into int
-  cursor.execute("""SELECT * FROM posts where id=%s""",(str(id)))
-  post=cursor.fetchone()
-  
+  # cursor.execute("""SELECT * FROM posts where id=%s""",(str(id)))
+  # post=cursor.fetchone()
+  post=db.query(models.Post).filter(models.Post.id == id).first()   #since we know that it contains only one post with unique id so instead of all() we can use first so one value is given
   if not post:
     raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,
                         detail=f"post with id: {id} was not found")
@@ -119,43 +136,52 @@ def get_post(id:str,response:Response):     #changing the response of the error 
     # return{'message':f"post with id: {id} was not found"}
   return {"post_detail":post}
 
+
+
+
      #DELETE THE POSTS
 @app.delete("/posts/{id}",status_code=status.HTTP_204_NO_CONTENT)   #directly updating the status code by giving it in the decorator
-def delete_post(id:str):
+def delete_post(id:int,db:Session = Depends(get_db)):
   #deleting post
   #find the index of the array that has replaced ID
   #my_posts.pop(index)
-  cursor.execute("""DELETE FROM posts where id=%s returning *""",(str(id),))
-  deleted_post=cursor.fetchone()
-  conn.commit()
+  # cursor.execute("""DELETE FROM posts where id=%s returning *""",(str(id),))
+  # deleted_post=cursor.fetchone()      #sql code
+  # conn.commit()
   
-  
-  if deleted_post == None:
+  post=db.query(models.Post).filter(models.Post.id == id)
+  if post.first() == None:
     raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,detail=f"post with id: {id} does not exist")
     
-  
+  post.delete(synchronize_session=False)
+  db.commit()
   return Response(status_code=status.HTTP_204_NO_CONTENT)
+  
+  
+  
   
     #UPDATING THE POST
 @app.put("/posts/{id}")
-def update_post(id: int,post: Post):
-  cursor.execute("""UPDATE posts SET title=%s,content=%s,published=%s where id=%s RETURNING *""",
-                 (post.title,post.title,post.published,str(id)))
-  updated_post=cursor.fetchone()
-  conn.commit()
-  
-  if updated_post == None:      #Works with def function
+def update_post(id: int,post_data: Post,db:Session = Depends(get_db)):
+  # cursor.execute("""UPDATE posts SET title=%s,content=%s,published=%s where id=%s RETURNING *""",
+  #                (post.title,post.title,post.published,str(id)))
+  # updated_post=cursor.fetchone()   #postgres code
+  # conn.commit()
+  post_query = db.query(models.Post).filter(models.Post.id == id)
+  post = post_query.first()
+  if post == None:      #Works with def function
     raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,
                         detail=f"post with id: {id} does not exist")
   
-  
-  return {"data":updated_post}
+  post_query.update(post_data.model_dump(),synchronize_session=False)   #dict() is Pydantic v2 does ot work on sqlalchemy model
+  db.commit()   #commit it to database
+  return {"data":post_query.first()}  #after updating post and send it back to user
   
   
   
 #while executing the fastapi in Swagger we should fetch data and run it by using uvicorn main:app --reload
   #SCHEMA
   
-# POSTGRE DATABASE
-#connecting postgre to python with Psycopg2
+# POSTGRES DATABASE
+#connecting postgres to python with Psycopg2
 
