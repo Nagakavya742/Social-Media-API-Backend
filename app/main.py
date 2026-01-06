@@ -1,7 +1,7 @@
 from fastapi import FastAPI,Response,status,HTTPException,Depends
 from fastapi.params import Body
 from pydantic import BaseModel
-from typing import Optional
+from typing import Optional,List
 from random import randrange
 import psycopg2
 from psycopg2.extras import RealDictCursor
@@ -9,7 +9,7 @@ import time
 from sqlalchemy.orm import  Session
 # from app.models import models
 from .database import engine,get_db
-from . import models
+from . import models,schemas
 
 #create engine all our models
 models.Base.metadata.create_all(bind=engine)
@@ -22,10 +22,7 @@ app=FastAPI()   #FastAPI is in child level so first in Social-Media-API-Backend 
 
 
       #SCHEMA
-class Post(BaseModel):
-  title:str
-  content:str              
-  published:bool=True
+
   
   
 while True:
@@ -66,31 +63,31 @@ def find_index_post(id):
 def get_posts():
   return {"dat" : "this is your posts"}
 
-@app.get("/sqlalchemy")
-def test_posts(db:Session = Depends(get_db)):
-  posts=db.query(models.Post)  #model represents table and db represents SessionLocal in DB
-                              #same as select * from posts.It abstracts all sql queries         
-  print(posts)
-  return {"data":"successful"}
+# @app.get("/sqlalchemy")     # it is used while learning sqlalchemy
+# def test_posts(db:Session = Depends(get_db)):
+#   posts=db.query(models.Post)  #model represents table and db represents SessionLocal in DB
+#                               #same as select * from posts.It abstracts all sql queries         
+#   print(posts)
+#   return {"data":"successful"}
 
 
 
 
     #CRUD OPP
      # GETTING ALL POSTS
-@app.get("/posts")         
+@app.get("/posts",response_model=List[schemas.Post])      #since the dat is dict so we converting into List  
 def get_posts(db:Session = Depends(get_db)):   #ur path operations need to work with DB then u should give parameters db:session=Depends(get_db)
   # cursor.execute("""SELECT * FROM posts""")
   # posts=cursor.fetchall()
   posts=db.query(models.Post).all()
-  return {"data":posts}
+  return posts
 
 
 
 
     #CREATING POSTS
-@app.post("/posts", status_code=status.HTTP_201_CREATED) #changes the default 200 as 201 created
-def create_posts(post:Post,db:Session = Depends(get_db)):         
+@app.post("/posts", status_code=status.HTTP_201_CREATED,response_model=schemas.Post) #changes the default 200 as 201 created  pydantic works with dict only
+def create_posts(post:schemas.PostCreate,db:Session = Depends(get_db)):         
   #referencing pydantic model
   # instead of dict we use model_dump in pydantic
   # cursor.execute("""INSERT INTO posts(title,content,published) VALUES (%s,%s,%s) RETURNING * """,
@@ -106,8 +103,8 @@ def create_posts(post:Post,db:Session = Depends(get_db)):
   )
   db.add(new_post)   #added to newly created DB
   db.commit()
-  db.refresh(new_post)    #returning the posts to PgAdmin same as returning statement in psycopg2 
-  return {"data":new_post} 
+  db.refresh(new_post)    #returning the posts to PgAdmin same as returning statement in psycopg2 and sqlalchemy model
+  return new_post    #just to return the dat in JSON files and only the required data
   #it separately gives random is=d to every post inserted into it
   #thus by running get method we get all the posts send to the post_dict
     #given all values in dict
@@ -122,7 +119,7 @@ def create_posts(post:Post,db:Session = Depends(get_db)):
 
 
     #GETTING INDIVIDUAL POSTS
-@app.get("/posts/{id}")         
+@app.get("/posts/{id}",response_model=schemas.Post)  #getting response from schemas.Post       
 #id represents the path parameter id of specific post
 def get_post(id:int,db:Session = Depends(get_db)):     #(response:Response)changing the response of the error occurred like 200 to 404    
   #automatically converts the the inbuilt string into int
@@ -134,7 +131,7 @@ def get_post(id:int,db:Session = Depends(get_db)):     #(response:Response)chang
                         detail=f"post with id: {id} was not found")
     # response.status_code=status.HTTP_404_NOT_FOUND   #changes the error code from 200 to 404  and inbuilt package provides the status of the error
     # return{'message':f"post with id: {id} was not found"}
-  return {"post_detail":post}
+  return post
 
 
 
@@ -161,8 +158,8 @@ def delete_post(id:int,db:Session = Depends(get_db)):
   
   
     #UPDATING THE POST
-@app.put("/posts/{id}")
-def update_post(id: int,post_data: Post,db:Session = Depends(get_db)):
+@app.put("/posts/{id}",response_model=schemas.Post)
+def update_post(id: int,post_data: schemas.PostCreate,db:Session = Depends(get_db)):    #importing Post from schemas so schemas.Post
   # cursor.execute("""UPDATE posts SET title=%s,content=%s,published=%s where id=%s RETURNING *""",
   #                (post.title,post.title,post.published,str(id)))
   # updated_post=cursor.fetchone()   #postgres code
@@ -175,7 +172,7 @@ def update_post(id: int,post_data: Post,db:Session = Depends(get_db)):
   
   post_query.update(post_data.model_dump(),synchronize_session=False)   #dict() is Pydantic v2 does ot work on sqlalchemy model
   db.commit()   #commit it to database
-  return {"data":post_query.first()}  #after updating post and send it back to user
+  return post_query.first() #after updating post and send it back to user    removed {"data":} because we just return only content not data
   
   
   
