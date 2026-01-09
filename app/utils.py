@@ -8,3 +8,7 @@ pwd_context=CryptContext(
 def hash(password:str):
   return pwd_context.hash(password)
   
+  
+#converts the raw password into hash and compares the previous or first given password that converted into hash and compares both
+def verify(plain_password,hashed_password):
+  return pwd_context.verify(plain_password,hashed_password)   #called the hashing conversion function to convert and compare

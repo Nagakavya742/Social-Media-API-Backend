@@ -8,19 +8,19 @@ import psycopg2
 from psycopg2.extras import RealDictCursor
 import time
 from sqlalchemy.orm import  Session
-
 # from app.models import models
 from .database import engine,get_db   #. means importing file from same dir or folder
 from . import models,schemas,utils
-from . routers import post,user
+from . routers import post, user, auth
 
 
 models.Base.metadata.create_all(bind=engine)
 
 
 app=FastAPI()   #FastAPI is in child level so first in Social-Media-API-Backend activate it and then cd app execute and database is connected
-
-
+app.include_router(post.router)
+app.include_router(user.router)
+app.include_router(auth.router)
 
 
 
@@ -34,7 +34,7 @@ while True:
       host='localhost',                  #local host is defined for local machine for ip address
       database='fastAPI',                #My DB is fastAPI and it connects
       user='postgres',                   #it connects to the postgres user
-      password='pavan@5701', #password for PgAdmin change it while committing into github
+      password='pavan', #password for PgAdmin change it while committing into github
       cursor_factory=RealDictCursor)     #it gives the column names and values
     cursor=conn.cursor()
     print("Database connection was successful")
@@ -61,9 +61,6 @@ def find_index_post(id):
     if p['id'] == id:
       return i
     
-    
-app.include_router(post.router)
-app.include_router(user.router)
 
 @app.get("/")
 def get_posts():

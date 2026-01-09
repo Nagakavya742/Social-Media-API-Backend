@@ -43,5 +43,10 @@ class UserOut(BaseModel):
   created_at:datetime
   class config():    #it going to say tell pydantic that ignore the fact that it is not a dict and go and convert into dict
     orm_mode=True
+    
+class UserLogin(BaseModel):
+  email:EmailStr
+  password:str
+  
   
   
