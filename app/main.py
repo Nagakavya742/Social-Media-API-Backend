@@ -3,15 +3,17 @@ from fastapi.params import Body
 from pydantic import BaseModel
 from typing import Optional,List
 from random import randrange
+
 import psycopg2
 from psycopg2.extras import RealDictCursor
 import time
 from sqlalchemy.orm import  Session
 # from app.models import models
 from .database import engine,get_db
-from . import models,schemas
+from . import models,schemas,utils
 
-#create engine all our models
+
+
 models.Base.metadata.create_all(bind=engine)
 
 
@@ -181,4 +183,43 @@ def update_post(id: int,post_data: schemas.PostCreate,db:Session = Depends(get_d
   
 # POSTGRES DATABASE
 #connecting postgres to python with Psycopg2
+
+    #WORKING WITH USER DATA
+@app.post("/users", status_code=status.HTTP_201_CREATED,response_model=schemas.UserOut)  #schemas.UserOut says that the output that is response-model should be executed as per UserOut definition
+def create_post(user:schemas.UserCreate,db:Session = Depends(get_db)):
+  
+  #hash the password - user.password
+  hashed_password=utils.hash(user.password)   #hashed the user password
+  user.password = hashed_password
+  new_user=models.User(     #it is used to retrieve all attributes(column) in DataBase table
+    **user.dict()
+  )
+  db.add(new_user)   #added to newly created DB
+  db.commit()
+  db.refresh(new_user)    #returning the posts to PgAdmin same as returning statement in psycopg2 and sqlalchemy model
+  return new_user    #just to return the data in JSON files and only the required data
+  #it separately gives random is=d to every post inserted into it
+  #thus by running get method we get all the posts send to the post_dict
+    #given all values in dict
+  
+
+@app.get('/users/{id}',response_model=schemas.UserOut)
+def get_user(id: int,db:Session = Depends(get_db)):
+  user=db.query(models.User).filter(models.User.id==id).first()
+  
+  if not user:
+    raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,detail=f"User with id:{id} does not exist")
+  return user
+
+
+
+
+
+
+
+
+
+
+
+
 

@@ -1,4 +1,4 @@
-from pydantic import BaseModel
+from pydantic import BaseModel,EmailStr
 from datetime import datetime
 
 class Post(BaseModel):
@@ -32,4 +32,16 @@ class Post(PostBase):   #we are defining the schema of the data that should appe
   created_at:datetime
   class config():    #it going to say tell pydantic that ignore the fact that it is not a dict and go and convert into dict
     orm_mode=True
+  
+class UserCreate(BaseModel):
+  email : EmailStr  #default email validator in pydantic lib checks if it is a valid email
+  password : str
+  
+class UserOut(BaseModel):
+  id:int
+  email:EmailStr
+  created_at:datetime
+  class config():    #it going to say tell pydantic that ignore the fact that it is not a dict and go and convert into dict
+    orm_mode=True
+  
   
