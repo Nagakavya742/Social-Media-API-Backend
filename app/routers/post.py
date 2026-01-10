@@ -1,5 +1,5 @@
 from fastapi import FastAPI,Response,status,HTTPException,Depends,APIRouter
-from .. import models,schemas     #.. means importing file from other upper folder
+from .. import models, oauth2,schemas    #.. means importing file from other upper folder
 from sqlalchemy.orm import  Session
 from .. database import get_db   #. means importing file from same dir or folder
 from typing import List
@@ -10,7 +10,7 @@ router=APIRouter(
 )
 
 @router.get("/",response_model=List[schemas.Post])      #since the dat is dict so we converting into List  
-def get_posts(db:Session = Depends(get_db)):   #ur path operations need to work with DB then u should give parameters db:session=Depends(get_db)
+def get_posts(db:Session = Depends(get_db),current_user:int=Depends(oauth2.get_current_user)):   #ur path operations need to work with DB then u should give parameters db:session=Depends(get_db)
   # cursor.execute("""SELECT * FROM posts""")
   # posts=cursor.fetchall()
   posts=db.query(models.Post).all()
@@ -21,7 +21,7 @@ def get_posts(db:Session = Depends(get_db)):   #ur path operations need to work 
 
     #CREATING POSTS
 @router.post("/", status_code=status.HTTP_201_CREATED,response_model=schemas.Post) #changes the default 200 as 201 created  pydantic works with dict only
-def create_posts(post:schemas.PostCreate,db:Session = Depends(get_db)):         
+def create_posts(post:schemas.PostCreate,db:Session = Depends(get_db),current_user:int=Depends(oauth2.get_current_user)):         
   #referencing pydantic model
   # instead of dict we use model_dump in pydantic
   # cursor.execute("""INSERT INTO posts(title,content,published) VALUES (%s,%s,%s) RETURNING * """,
@@ -35,6 +35,7 @@ def create_posts(post:schemas.PostCreate,db:Session = Depends(get_db)):
   new_post=models.Post(     #it is used to retrieve all attributes(column) in DataBase table
     **post.dict()
   )
+  print(current_user.email)
   db.add(new_post)   #added to newly created DB
   db.commit()
   db.refresh(new_post)    #returning the posts to PgAdmin same as returning statement in psycopg2 and sqlalchemy model
@@ -55,7 +56,7 @@ def create_posts(post:schemas.PostCreate,db:Session = Depends(get_db)):
     #GETTING INDIVIDUAL POSTS
 @router.get("/{id}",response_model=schemas.Post)  #getting response from schemas.Post       
 #id represents the path parameter id of specific post
-def get_post(id:int,db:Session = Depends(get_db)):     #(response:Response)changing the response of the error occurred like 200 to 404    
+def get_post(id:int,db:Session = Depends(get_db),current_user:int=Depends(oauth2.get_current_user)):     #(response:Response)changing the response of the error occurred like 200 to 404    
   #automatically converts the the inbuilt string into int
   # cursor.execute("""SELECT * FROM posts where id=%s""",(str(id)))
   # post=cursor.fetchone()
@@ -72,7 +73,7 @@ def get_post(id:int,db:Session = Depends(get_db)):     #(response:Response)chang
 
      #DELETE THE POSTS
 @router.delete("/{id}",status_code=status.HTTP_204_NO_CONTENT)   #directly updating the status code by giving it in the decorator
-def delete_post(id:int,db:Session = Depends(get_db)):
+def delete_post(id:int,db:Session = Depends(get_db),current_user:int=Depends(oauth2.get_current_user)):
   #deleting post
   #find the index of the array that has replaced ID
   #my_posts.pop(index)
@@ -93,7 +94,7 @@ def delete_post(id:int,db:Session = Depends(get_db)):
   
     #UPDATING THE POST
 @router.put("/{id}",response_model=schemas.Post)
-def update_post(id: int,post_data: schemas.PostCreate,db:Session = Depends(get_db)):    #importing Post from schemas so schemas.Post
+def update_post(id: int,post_data: schemas.PostCreate,db:Session = Depends(get_db),current_user:int=Depends(oauth2.get_current_user)):    #importing Post from schemas so schemas.Post
   # cursor.execute("""UPDATE posts SET title=%s,content=%s,published=%s where id=%s RETURNING *""",
   #                (post.title,post.title,post.published,str(id)))
   # updated_post=cursor.fetchone()   #postgres code

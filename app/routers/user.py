@@ -1,5 +1,5 @@
 from fastapi import FastAPI,Response,status,HTTPException,Depends,APIRouter
-from .. import models,schemas,utils     #.. means importing file from other upper folder
+from .. import models,schemas,utils,oauth2     #.. means importing file from other upper folder
 from sqlalchemy.orm import  Session
 from .. database import get_db   #. means importing file from same dir or folder
 
@@ -11,6 +11,12 @@ router=APIRouter(
 #connecting postgres to python with Psycopg2
 
     #WORKING WITH USER DATA
+    
+
+# @router.get("/me")
+# def get_me(current_user=Depends(oauth2.get_current_user)):
+#     return current_user
+  
 @router.post("/", status_code=status.HTTP_201_CREATED,response_model=schemas.UserOut)  #schemas.UserOut says that the output that is response-model should be executed as per UserOut definition
 def create_post(user:schemas.UserCreate,db:Session = Depends(get_db)):
   
