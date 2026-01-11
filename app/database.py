@@ -1,6 +1,11 @@
 from sqlalchemy import create_engine
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
+import psycopg2
+from psycopg2.extras import RealDictCursor
+import time
+
+
 
 # SQLALCHEMY_DATABASE_URL='postgresql://postgres:pavan@localhost/fastAPI'
 SQLALCHEMY_DATABASE_URL='postgresql://postgres:pavan@localhost/fastAPI'
@@ -25,3 +30,21 @@ def get_db():    #we just keep calling this function every time we get any reque
     yield db
   finally:
     db.close()
+  
+  # while True:
+  #   try:
+  #     conn=psycopg2.connect(
+  #       host='localhost',                  #local host is defined for local machine for ip address
+  #       database='fastAPI',                #My DB is fastAPI and it connects
+  #       user='postgres',                   #it connects to the postgres user
+  #       password='pavan@5701', #password for PgAdmin change it while committing into github
+  #       cursor_factory=RealDictCursor)     #it gives the column names and values
+  #     cursor=conn.cursor()
+  #     print("Database connection was successful")
+  #     break
+
+  #   except Exception as error:
+      
+  #     print("Connecting to database failed")
+  #     print("error:",error)
+  #     break

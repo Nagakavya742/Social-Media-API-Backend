@@ -2,7 +2,7 @@ from fastapi import FastAPI,Response,status,HTTPException,Depends,APIRouter
 from .. import models, oauth2,schemas    #.. means importing file from other upper folder
 from sqlalchemy.orm import  Session
 from .. database import get_db   #. means importing file from same dir or folder
-from typing import List
+from typing import List,Optional
 
 router=APIRouter(
   prefix="/posts",
@@ -10,10 +10,13 @@ router=APIRouter(
 )
 
 @router.get("/",response_model=List[schemas.Post])      #since the dat is dict so we converting into List  
-def get_posts(db:Session = Depends(get_db),current_user:int=Depends(oauth2.get_current_user)):   #ur path operations need to work with DB then u should give parameters db:session=Depends(get_db)
+def get_posts(db:Session = Depends(get_db),current_user:int=Depends(oauth2.get_current_user),limit:int=10,skip:int=0,search:Optional[str]="Novatel"):   #ur path operations need to work with DB then u should give parameters db:session=Depends(get_db)
   # cursor.execute("""SELECT * FROM posts""")
   # posts=cursor.fetchall()
-  posts=db.query(models.Post).all()
+  print(search)
+  print(limit)
+  posts=db.query(models.Post).filter(models.Post.title.contains(search)).limit(limit).offset(skip).all()     #.filter(models.Post.owner_id==current_user.id).all()  #we r instructing to view posts only for the owner_id that creates posts not other 
+  print(posts)
   return posts
 
 
@@ -32,10 +35,12 @@ def create_posts(post:schemas.PostCreate,db:Session = Depends(get_db),current_us
   # new_post=models.Post(title=post.title,
   #                      content=post.content,
   #                      published=post.published)  #sqlalchemy handles all our logics and retrieving data
-  new_post=models.Post(     #it is used to retrieve all attributes(column) in DataBase table
-    **post.dict()
+  
+  new_post = models.Post(     #it is used to retrieve all attributes(column) in DataBase table
+    owner_id=current_user.id , **post.dict()
   )
-  print(current_user.email)
+  # print(current_user.id)
+  # print(current_user.email)
   db.add(new_post)   #added to newly created DB
   db.commit()
   db.refresh(new_post)    #returning the posts to PgAdmin same as returning statement in psycopg2 and sqlalchemy model
@@ -64,6 +69,9 @@ def get_post(id:int,db:Session = Depends(get_db),current_user:int=Depends(oauth2
   if not post:
     raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,
                         detail=f"post with id: {id} was not found")
+    
+  # if post.owner_id != current_user.id:     restricts the view of ur data fro permitted owner_id only
+  #   raise HTTPException(status_code=status.HTTP_403_FORBIDDEN,detail="Not authorized to perform requested action")
     # response.status_code=status.HTTP_404_NOT_FOUND   #changes the error code from 200 to 404  and inbuilt package provides the status of the error
     # return{'message':f"post with id: {id} was not found"}
   return post
@@ -73,7 +81,7 @@ def get_post(id:int,db:Session = Depends(get_db),current_user:int=Depends(oauth2
 
      #DELETE THE POSTS
 @router.delete("/{id}",status_code=status.HTTP_204_NO_CONTENT)   #directly updating the status code by giving it in the decorator
-def delete_post(id:int,db:Session = Depends(get_db),current_user:int=Depends(oauth2.get_current_user)):
+def delete_post(id:int,db:Session = Depends(get_db),current_user : int = Depends(oauth2.get_current_user)):
   #deleting post
   #find the index of the array that has replaced ID
   #my_posts.pop(index)
@@ -81,11 +89,17 @@ def delete_post(id:int,db:Session = Depends(get_db),current_user:int=Depends(oau
   # deleted_post=cursor.fetchone()      #sql code
   # conn.commit()
   
-  post=db.query(models.Post).filter(models.Post.id == id)
-  if post.first() == None:
+  post_query=db.query(models.Post).filter(models.Post.id == id)   #we give conditions to delete post only when owner_id is equal
+  
+  post=post_query.first()
+  
+  if post == None:
     raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,detail=f"post with id: {id} does not exist")
+  
+  if post.owner_id != current_user.id:
+    raise HTTPException(status_code=status.HTTP_403_FORBIDDEN,detail="Not authorized to perform requested action")
     
-  post.delete(synchronize_session=False)
+  post_query.delete(synchronize_session=False)
   db.commit()
   return Response(status_code=status.HTTP_204_NO_CONTENT)
   
@@ -102,8 +116,10 @@ def update_post(id: int,post_data: schemas.PostCreate,db:Session = Depends(get_d
   post_query = db.query(models.Post).filter(models.Post.id == id)
   post = post_query.first()
   if post == None:      #Works with def function
-    raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,
-                        detail=f"post with id: {id} does not exist")
+    raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,detail=f"post with id: {id} does not exist")
+  
+  if post.owner_id != current_user.id:
+    raise HTTPException(status_code=status.HTTP_403_FORBIDDEN,detail="Not authorized to perform requested action")
   
   post_query.update(post_data.model_dump(),synchronize_session=False)   #dict() is Pydantic v2 does ot work on sqlalchemy model
   
