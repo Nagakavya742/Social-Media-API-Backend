@@ -4,11 +4,11 @@ from sqlalchemy.orm import sessionmaker
 import psycopg2
 from psycopg2.extras import RealDictCursor
 import time
-
+from .config import settings
 
 
 # SQLALCHEMY_DATABASE_URL='postgresql://postgres:pavan@localhost/fastAPI'
-SQLALCHEMY_DATABASE_URL='postgresql://postgres:pavan@localhost/fastAPI'
+SQLALCHEMY_DATABASE_URL=f'postgresql://{settings.database_username}:{settings.database_password}@{settings.database_hostname}:{settings.database_port}/{settings.database_name}'
 
 engine=create_engine(SQLALCHEMY_DATABASE_URL)     #engine is responsible for sqlalchemy to connect to postgres database
 
@@ -37,7 +37,7 @@ def get_db():    #we just keep calling this function every time we get any reque
   #       host='localhost',                  #local host is defined for local machine for ip address
   #       database='fastAPI',                #My DB is fastAPI and it connects
   #       user='postgres',                   #it connects to the postgres user
-  #       password='pavan@5701', #password for PgAdmin change it while committing into github
+  #       password='pavan', #password for PgAdmin change it while committing into github
   #       cursor_factory=RealDictCursor)     #it gives the column names and values
   #     cursor=conn.cursor()
   #     print("Database connection was successful")
