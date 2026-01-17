@@ -1,4 +1,4 @@
-from pydantic import BaseModel,EmailStr
+from pydantic import BaseModel,EmailStr,ConfigDict
 from datetime import datetime
 from typing import Optional
 from pydantic.types import conint
@@ -19,9 +19,12 @@ class Post(BaseModel):
 #   published:bool          #user is only restricted to update published column only
   
 class PostBase(BaseModel):   #by inheriting all attributes from PostBase def we need not to give columns in that Post(postBase)
+  # Post:Post
+  # votes:int
   title:str      
   content:str
   published:bool=True
+  model_config=ConfigDict(from_attributes=True)
 
 class PostCreate(PostBase):      #pydantic model by default it going to automatically inherit all the fields for PostBase
   pass             #same as PostBase
@@ -30,10 +33,10 @@ class UserOut(BaseModel):
   id:int
   email:EmailStr
   created_at:datetime
-  class config():    #it going to say tell pydantic that ignore the fact that it is not a dict and go and convert into dict
-    orm_mode=True
+  model_config=ConfigDict(from_attributes=True)
     
 class Post(PostBase):   #we are defining the schema of the data that should appear in response and it consist of all the attributes in PostBase
+  
   id:int
   # title:str   #commented bcs it already defined in PostBase
   # content:str
@@ -41,9 +44,15 @@ class Post(PostBase):   #we are defining the schema of the data that should appe
   created_at:datetime
   owner_id:int
   owner:UserOut    #it returns the pydantic model
+  votes:Optional[int] = 0  #vote count for the post
   
-  class config():    #it going to say tell pydantic that ignore the fact that it is not a dict and go and convert into dict
-    orm_mode=True
+  model_config=ConfigDict(from_attributes=True)
+  
+class PostOut(BaseModel):
+  Post:Post
+  votes:int
+  
+  model_config=ConfigDict(from_attributes=True)
   
 class UserCreate(BaseModel):
   email : EmailStr  #default email validator in pydantic lib checks if it is a valid email

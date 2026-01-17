@@ -3,21 +3,39 @@ from .. import models, oauth2,schemas    #.. means importing file from other upp
 from sqlalchemy.orm import  Session
 from .. database import get_db   #. means importing file from same dir or folder
 from typing import List,Optional
+from sqlalchemy import func
 
 router=APIRouter(
   prefix="/posts",
   tags=['posts']
 )
 
-@router.get("/",response_model=List[schemas.Post])      #since the dat is dict so we converting into List  
-def get_posts(db:Session = Depends(get_db),current_user:int=Depends(oauth2.get_current_user),limit:int=10,skip:int=0,search:Optional[str]="Novatel"):   #ur path operations need to work with DB then u should give parameters db:session=Depends(get_db)
+#@router.get("/",response_model=List[schemas.Post])   #since the dat is dict so we converting into List  it is to return posts
+@router.get("/",response_model=List[schemas.PostOut])    # it is to return results
+def get_posts(db:Session = Depends(get_db),current_user:int=Depends(oauth2.get_current_user),limit:int=10,skip:int=0,search:Optional[str]=""):   #ur path operations need to work with DB then u should give parameters db:session=Depends(get_db)
   # cursor.execute("""SELECT * FROM posts""")
   # posts=cursor.fetchall()
   print(search)
   print(limit)
-  posts=db.query(models.Post).filter(models.Post.title.contains(search)).limit(limit).offset(skip).all()     #.filter(models.Post.owner_id==current_user.id).all()  #we r instructing to view posts only for the owner_id that creates posts not other 
+  # posts=db.query(models.Post).filter(models.Post.title.contains(search)).limit(limit).offset(skip).all()  #.filter(models.Post.owner_id==current_user.id).all()  #we r instructing to view posts only for the owner_id that creates posts not other 
+  
+  posts=db.query(models.Post,func.count(models.Vote.post_id).label("votes")).join(models.Vote, models.Vote.post_id==models.Post.id,isouter=True).group_by(models.Post.id).filter(models.Post.title.contains(search)).limit(limit).offset(skip).all()        # it says that left outer joint to perform
+  posts = list ( map (lambda x : x._mapping, posts) )
   print(posts)
+  # Convert tuples to Post objects with votes
+  # posts = []
+  # for post, vote_count in results:
+  #   # Use model_validate to convert SQLAlchemy model to Pydantic model, then add votes
+  #   post_schema = schemas.Post.model_validate(post)
+  #   # Update votes field using model_copy
+  #   post_schema = post_schema.model_copy(update={"votes": vote_count or 0})
+  #   posts.append(post_schema)
+  
+  #print(posts)
   return posts
+  # return posts
+  # print(posts)
+  # return posts
 
 
 
@@ -59,13 +77,15 @@ def create_posts(post:schemas.PostCreate,db:Session = Depends(get_db),current_us
 
 
     #GETTING INDIVIDUAL POSTS
-@router.get("/{id}",response_model=schemas.Post)  #getting response from schemas.Post       
+@router.get("/{id}",response_model=schemas.PostOut)  #getting response from schemas.Post       
 #id represents the path parameter id of specific post
 def get_post(id:int,db:Session = Depends(get_db),current_user:int=Depends(oauth2.get_current_user)):     #(response:Response)changing the response of the error occurred like 200 to 404    
   #automatically converts the the inbuilt string into int
   # cursor.execute("""SELECT * FROM posts where id=%s""",(str(id)))
   # post=cursor.fetchone()
-  post=db.query(models.Post).filter(models.Post.id == id).first()   #since we know that it contains only one post with unique id so instead of all() we can use first so one value is given
+  # post=db.query(models.Post).filter(models.Post.id == id).first()   #since we know that it contains only one post with unique id so instead of all() we can use first so one value is given
+  
+  post=db.query(models.Post,func.count(models.Vote.post_id).label("votes")).join(models.Vote, models.Vote.post_id==models.Post.id,isouter=True).group_by(models.Post.id).filter(models.Post.id == id).first() 
   if not post:
     raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,
                         detail=f"post with id: {id} was not found")
