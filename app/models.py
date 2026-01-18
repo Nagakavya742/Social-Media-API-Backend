@@ -17,13 +17,16 @@ class Post(Base):      #model 1
   
   owner=relationship("User")   #building a relationship b/w owner and user
      
+
 class User(Base):
   __tablename__="users"
   id = Column(Integer,primary_key=True,nullable=False)
   email = Column(String,nullable=False,unique=True)
   password = Column(String,nullable=False)
   created_at=Column(TIMESTAMP(timezone=True),nullable=False,server_default=text('now()'))
-  
+  phone_number=Column(String)      # it does not set up new column in post table it  is drawback of sqlalchemy
+
+
 class Vote(Base):
   __tablename__="votes"
   user_id=Column(Integer,ForeignKey("users.id",ondelete="CASCADE"),primary_key=True)

@@ -1,4 +1,5 @@
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 # from fastapi.params import Body
 # from pydantic import BaseModel
 # from typing import Optional,List
@@ -12,10 +13,22 @@ from . routers import post, user, auth ,vote
 from . import models
 from . config import settings   #importing settings instance variable from config
 
-models.Base.metadata.create_all(bind=engine)
+models.Base.metadata.create_all(bind=engine)   # it says sqlalchemy to run create statements so that it generates all of the tables
 
 
 app=FastAPI()   #FastAPI is in child level so first in Social-Media-API-Backend activate it and then cd app execute and database is connected
+
+origins=["*"]             #origins=["https://www.google.com","https://www.youtube.com"]   #allow google to talk with us list of url's that can talk to our API    origins=["*"] it means allowing every single origin to access our API
+
+app.add_middleware(
+  CORSMiddleware,
+  allow_origins=origins,
+  allow_credentials=True,
+  allow_methods=["*"],          #all methods can be retrieved
+  allow_headers=["*"]           #all headers can be retrieved
+)
+
+
 app.include_router(post.router)
 app.include_router(user.router)
 app.include_router(auth.router)
@@ -36,8 +49,8 @@ app.include_router(vote.router)
     
 
 @app.get("/")
-def get_posts():
-  return {"dat" : "this is your posts"}
+def root():
+  return {"data" : "this is your posts"}
 
 # @app.get("/sqlalchemy")     # it is used while learning sqlalchemy
 # def test_posts(db:Session = Depends(get_db)):
